@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "smart-ai-traveller-6ea84"
+  },
+  "targets": {
+    "smart-ai-traveller-6ea84": {
+      "hosting": {
+        "prod": [
+          "rgm-hostel-portal"
+        ],
+        "staging": [
+          "rgmcet-hostel-portal-staging"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

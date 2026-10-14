@@ -1,0 +1,222 @@
+rules_version = '2';
+
+// =============================================================================
+// RGM Hostel Portal - Firestore Security Rules
+// -----------------------------------------------------------------------------
+// Model: role scoping is performed through Firebase Auth custom claims
+// (`request.auth.token.role`). Before first release a server-side admin
+// (Admin SDK / Cloud Function) must set the `role` claim for each signed-in
+// user so these rules can enforce per-role access.
+//
+// Fallback: until claims are provisioned, authentication alone is required
+// for every non-public collection (this already blocks the previous wide-open
+// "allow all" state). Collections that are genuinely public on the marketing
+// site keep anonymous read access.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers ----------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isRole(role) {
+      return signedIn() && request.auth.token.role == role;
+    }
+
+    // Roles allowed to manage system users / audit / settings
+    function isAdmin() {
+      return isRole('admin') || isRole('chief_warden') || isRole('management')
+          || isRole('principal') || isRole('hostel_office');
+    }
+
+    // Staff roles that may view sensitive management data
+    function isStaff() {
+      return signedIn() && (
+        request.auth.token.role in ['admin', 'chief_warden', 'management', 'warden',
+          'principal', 'hostel_office', 'security', 'mess_manager', 'housekeeping', 'medical']
+      );
+    }
+
+    // ---- Public marketing-site collections (anonymous read allowed) --------
+
+    match /Hostel/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /Menu/{doc} {
+      allow read: if true;
+      allow write: if isRole('mess_manager') || isAdmin();
+    }
+
+    match /Announcement/{doc} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /Settings/{doc} {
+      // Public read so the home page can show hostel status; writes limited
+      // to staff who manage meal/NRC configuration.
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---- Authenticated collections ----------------------------------------
+
+    // User profiles. Readable by any signed-in user (auth/profile resolution
+    // requires it). Write is restricted to admins and wardens, who provision
+    // accounts for staff and students.
+    match /User/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (isRole('warden') || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /Room/{doc} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Student records drive most dashboards; read requires auth.
+    match /Student/{doc} {
+      allow read: if signedIn();
+      allow create: if isRole('warden') || isAdmin();
+      allow update: if signedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /MealBooking/{doc} {
+      allow read, create: if signedIn();
+      allow update, delete: if isStaff();
+    }
+
+    match /GatePass/{doc} {
+      allow read, create: if signedIn();
+      allow update, delete: if isStaff();
+    }
+
+    match /Leave/{doc} {
+      allow read, create: if signedIn();
+      allow update, delete: if isStaff();
+    }
+
+    match /Maintenance/{doc} {
+      allow read, create: if signedIn();
+      allow update, delete: if isStaff();
+    }
+
+    match /Inventory/{doc} {
+      allow read: if isRole('mess_manager') || isAdmin();
+      allow write: if isRole('mess_manager') || isAdmin();
+    }
+
+    // Mess attendance & QR checkpoints
+    match /MessAttendance/{doc} {
+      allow read, create: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /MessPoint/{doc} {
+      allow read: if signedIn();
+      allow write: if isRole('mess_manager') || isAdmin();
+    }
+
+    match /FoodFeedback/{doc} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /Cleaning/{doc} {
+      allow read: if isRole('housekeeping') || isAdmin();
+      allow write: if isRole('housekeeping') || isAdmin();
+    }
+
+    match /EntryExit/{doc} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /Visitor/{doc} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    // Notifications are created/read by every signed-in role.
+    match /Notification/{doc} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Parent notification log is management-focused data.
+    match /ParentNotification/{doc} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /ActivityLog/{doc} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // ---- Night roll call ---------------------------------------------------
+
+    match /NightRollCallSessions/{doc} {
+      allow read: if signedIn();
+      allow write: if isRole('warden') || isAdmin();
+    }
+
+    match /NightRollCallCheckpoints/{doc} {
+      allow read: if signedIn();
+      allow write: if isRole('warden') || isAdmin();
+    }
+
+    match /NightRollCallRecords/{doc} {
+      allow read, create: if signedIn();
+      allow update, delete: if isRole('warden') || isAdmin();
+    }
+
+    // ---- Smart gate security ----------------------------------------------
+
+    // Gate configuration (physical gate desks). Readable by everyone signed in;
+    // only wardens/admins may reconfigure a gate.
+    match /Gate/{doc} {
+      allow read: if signedIn();
+      allow write: if isRole('warden') || isAdmin();
+    }
+
+    // Gate movement audit trail. Strictly append-only after creation so the
+    // recorded history can never be tampered with or rewritten by a client.
+    match /GateLog/{doc} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    // WhatsApp/notification job queue. Enqueued by any signed-in flow that
+    // triggers a parent alert; settled by the browser queue processor (which
+    // steps pending -> sending -> sent/failed). Hard deletes stay with admins.
+    match /NotificationJob/{doc} {
+      allow read: if isStaff();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if isAdmin();
+    }
+
+    // ---- Internal seeding / upgrade markers --------------------------------
+    // Production releases should not rely on client-side seeding. These rules
+    // disallow anonymous seed writes; only signed-in users may touch _meta so
+    // a misconfigured seed never runs anonymously.
+    match /_meta/{doc} {
+      allow read, write: if signedIn();
+    }
+
+    // ---- Fallback: deny everything not matched above -----------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

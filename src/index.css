@@ -1,0 +1,339 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Poppins", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #312e81;
+    --primary-foreground: #f8fafc;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #1e293b;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #0d9488;
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #6366f1;
+    --radius: 1rem;
+    --sidebar: #f8fafc;
+    --sidebar-foreground: #0f172a;
+  }
+
+  .dark {
+    --background: #0b1220;
+    --foreground: #f8fafc;
+    --card: #151e31;
+    --card-foreground: #f8fafc;
+    --popover: #151e31;
+    --popover-foreground: #f8fafc;
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --secondary: #1e293b;
+    --secondary-foreground: #f8fafc;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --accent: #2dd4bf;
+    --accent-foreground: #042f2e;
+    --destructive: #f87171;
+    --destructive-foreground: #ffffff;
+    --border: #243349;
+    --input: #243349;
+    --ring: #818cf8;
+    --sidebar: #0b1220;
+    --sidebar-foreground: #f8fafc;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+/* === Mobile-first hardening: never allow horizontal scroll or hidden overflow === */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: clip;
+}
+
+/* === Native status-bar / display-cutout / keyboard safe-area support ===
+   index.html ships `viewport-fit=cover`, so on notched phones and edge-to-edge
+   Android the layout viewport can extend under the system bars. The native
+   status bar stays visible; we never fake one.
+
+   Capacitor 8's built-in SystemBars plugin listens to real WindowInsets and
+   injects `--safe-area-inset-top/right/bottom/left` (px) onto the document
+   root — these carry the TRUE insets even on WebViews where env() can report 0.
+   When the plugin is absent (browser, iOS) we fall back to env().
+
+   --safe-top / --safe-right / --safe-bottom / --safe-left are the canonical
+   variables and the SINGLE source of truth. Every fixed/sticky utility below
+   and every component (headers, bottom nav, drawers, sheets) reads them — one
+   reusable approach, no per-component duplication. */
+:root {
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+/* Safe-area helpers for native installs (Portrait / Landscape / iOS / Android).
+   Apply to any fixed/sticky top bar: the bar's background (and any backdrop
+   blur) extends under the status bar for a seamless look, while its CONTENT is
+   pushed below --safe-top — below the native status-bar icons. */
+.pt-safe {
+  padding-top: var(--safe-top);
+}
+.pt-safe-content {
+  padding-top: var(--safe-top);
+}
+.px-safe {
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+.pb-safe {
+  padding-bottom: var(--safe-bottom);
+}
+.mb-safe {
+  margin-bottom: var(--safe-bottom);
+}
+.bt-safe {
+  bottom: var(--safe-bottom);
+  top: auto;
+}
+
+/* Safe-area band rendered ABOVE sticky/fixed headers. Its height is exactly
+   --safe-top (notches, punch-holes, edge-to-edge Android 15, gesture nav) and
+   0 everywhere else, so desktop/tablet are untouched. It is tinted with the
+   app's theme-color so the white status-bar icons stay readable and the app
+   header NEVER sits under the system time / signal / battery icons — it sits
+   below a clean, visible gap instead. */
+.safe-top-band {
+  height: var(--safe-top);
+  background: #312e81;
+}
+
+#root,
+#root * {
+  min-width: 0;
+}
+
+/* Every text node wraps instead of overflowing its box. This is the single
+   biggest fix for text-overlap on phones: long hostel names, pass IDs and
+   labels now wrap inside their flex/grid lane instead of pushing siblings
+   off-screen. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+a,
+button,
+li,
+label,
+input,
+select,
+textarea,
+th,
+td {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Flex rows: children that can shrink are allowed to (prevents compression
+   collisions between long text and shrink-0 badges). */
+.flex {
+  min-width: 0;
+}
+
+/* Let grid children shrink to their track instead of forcing whole-page overflow */
+[class*="grid-cols"] > * {
+  min-width: 0;
+}
+
+/* Cap only in-flow content to its container; leave fixed modals/dropdowns alone */
+#root > * {
+  max-width: 100%;
+}
+
+#root *:not([class*="fixed"]):not([class*="absolute"]) {
+  max-width: 100%;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+select,
+input,
+textarea,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Hide number-input spinners for a cleaner mobile look */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* iOS momentum scrolling for any scroll container */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Hide scrollbars but keep scrollability (drawers / horizontal chips) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 16px inputs on phones prevent the iOS auto-zoom-on-focus jump */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Keep desktop text crisp & legible */
+@media (min-width: 641px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Coarse pointers (mobile) get relaxed hover so taps never "stick" */
+@media (pointer: coarse) {
+  button:hover,
+  a:hover,
+  [role="button"]:hover {
+    transform: none !important;
+  }
+}
+
+/* Fonts for special/display headings */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Soft, premium card shadow used across the portal */
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 16px -6px rgba(15, 23, 42, 0.08);
+}
+
+.shadow-card-hover {
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 14px 28px -10px rgba(15, 23, 42, 0.14);
+}
+
+/* Bottom-sheet modal height: dvh with vh fallback for older webviews.
+   --safe-bottom is 0 when the keyboard is open, so sheets fit the reduced
+   viewport and never get pushed off-screen. */
+.modal-sheet {
+  max-height: 90vh;
+  max-height: calc(100dvh + var(--safe-bottom));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(148, 163, 184, 0.15);
+  border-radius: 0.75rem;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
